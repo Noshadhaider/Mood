@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mood</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#000;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column;align-items:center}
+.screen{display:none;width:100%;max-width:480px;height:100%;padding:20px 18px;padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom));flex-direction:column;position:relative;z-index:2}
+.screen.active{display:flex}
+
+/* JOIN */
+#join{justify-content:center;gap:14px;text-align:center}
+#join h1{font-size:34px;letter-spacing:1px}
+#join p{color:#9a98b5;font-size:14px;line-height:1.5}
+input{width:100%;padding:15px 16px;border-radius:16px;border:1px solid #2c2a45;background:#12111f;color:#fff;font-size:16px;outline:none;text-align:center}
+input:focus{border-color:#8b5cf6}
+.btn{padding:15px;border-radius:16px;border:0;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+.btn:active{transform:scale(.97)}
+#warn{background:#2a1a10;border:1px solid #7a4a1f;color:#ffb877;font-size:12px;padding:10px;border-radius:12px;display:none;line-height:1.5}
+
+/* MAIN */
+.top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#9a98b5}
+.top b{color:#fff}
+.link{background:none;border:0;color:#a78bfa;font-size:13px;cursor:pointer}
+#stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative}
+#pname{font-size:15px;color:#9a98b5;margin-bottom:10px}
+#pemoji{font-size:150px;line-height:1;filter:drop-shadow(0 0 40px rgba(167,139,250,.45));user-select:none}
+#ptext{margin-top:18px;font-size:26px;font-weight:600;min-height:34px;padding:0 10px}
+#pago{margin-top:8px;font-size:12px;color:#6d6b88}
+#waiting{font-size:15px;color:#6d6b88;line-height:1.6}
+
+.me{background:#0e0d1a;border:1px solid #23213a;border-radius:22px;padding:12px 14px}
+.me-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+#memoji{font-size:34px}
+#mtext{font-size:13px;color:#9a98b5}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:132px;overflow-y:auto;margin-bottom:10px}
+.grid button{background:none;border:0;font-size:26px;padding:4px 0;border-radius:10px;cursor:pointer}
+.grid button.sel{background:#2a2550}
+.grid button:active{transform:scale(1.3)}
+.send{display:flex;gap:8px}
+.send input{text-align:left;padding:12px 14px;font-size:15px}
+.send .btn{padding:12px 18px}
+
+/* ANIMATIONS */
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px) scale(1.05)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-9px) rotate(-4deg)}40%{transform:translateX(9px) rotate(4deg)}60%{transform:translateX(-7px) rotate(-3deg)}80%{transform:translateX(7px) rotate(3deg)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-14px) rotate(3deg)}}
+@keyframes wiggle{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.a-bounce{animation:bounce 1.1s ease-in-out infinite}
+.a-shake{animation:shake .6s ease-in-out infinite}
+.a-pulse{animation:pulse 1.1s ease-in-out infinite}
+.a-float{animation:floaty 2.6s ease-in-out infinite}
+.a-wiggle{animation:wiggle 1s ease-in-out infinite}
+.a-spin{animation:spin 2.4s linear infinite}
+.pop{animation:popin .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes popin{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* rising background emojis */
+#rain{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:1}
+.drop{position:absolute;bottom:-60px;font-size:28px;opacity:.0;animation:rise 6s linear forwards}
+@keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:.35}100%{transform:translateY(-110vh) rotate(25deg);opacity:0}}
+</style>
+</head>
+<body>
+<div id="rain"></div>
+
+<!-- JOIN SCREEN -->
+<div class="screen active" id="join">
+  <div style="font-size:64px">🫶</div>
+  <h1>Mood</h1>
+  <p>Dono log same code daalo.<br>Phir dusre ka mood aapki screen par dikhega.</p>
+  <input id="inName" placeholder="Aapka naam" maxlength="14">
+  <input id="inRoom" placeholder="Secret code (jaise: pyaar123)" maxlength="20" autocapitalize="none">
+  <button class="btn" id="go">Connect karo</button>
+  <div id="warn"></div>
+</div>
+
+<!-- MAIN SCREEN -->
+<div class="screen" id="main">
+  <div class="top">
+    <span><i id="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px"></i>Code: <b id="roomLbl"></b></span>
+    <button class="link" id="leave">Bahar niklo</button>
+  </div>
+
+  <div id="stage">
+    <div id="waiting">Dusre ke join hone ka wait…<br>unhe bhi yahi code daalne bolo</div>
+    <div id="pname" style="display:none"></div>
+    <div id="pemoji" style="display:none"></div>
+    <div id="ptext"></div>
+    <div id="pago"></div>
+  </div>
+
+  <div class="me">
+    <div class="me-row">
+      <div id="memoji">🙂</div>
+      <div id="mtext">Apna mood chuno</div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="send">
+      <input id="inText" placeholder="3 shabd likho…" maxlength="40">
+      <button class="btn" id="send">Bhejo</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ============ FIREBASE CONFIG — apna yahan paste karo ============ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDnfIqdjRkG2v9TyiGPKqnLuz4n4CeZgVY",
+  authDomain: "mood-873e6.firebaseapp.com",
+  databaseURL: "https://mood-873e6-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mood-873e6",
+  storageBucket: "mood-873e6.firebasestorage.app",
+  messagingSenderId: "1062493662315",
+  appId: "1:1062493662315:web:7da73da40c39db041d552e"
+};
+/* ================================================================== */
+
+const DEMO = firebaseConfig.apiKey.startsWith("PASTE");
+const $ = id => document.getElementById(id);
+
+// emoji list: [emoji, animation]
+const EMOJIS = [
+ ["😀","bounce"],["😂","shake"],["🤣","shake"],["😍","pulse"],["🥰","float"],["😘","bounce"],["😎","float"],["🤩","spin"],
+ ["🥳","bounce"],["😇","float"],["😌","float"],["🤗","bounce"],["😏","wiggle"],["😜","wiggle"],["🤪","spin"],["🤔","wiggle"],
+ ["🙄","wiggle"],["😴","float"],["🥱","float"],["😪","float"],["😢","wiggle"],["😭","wiggle"],["🥺","pulse"],["💔","pulse"],
+ ["😡","shake"],["🤬","shake"],["😤","shake"],["😠","shake"],["😱","shake"],["🤯","shake"],["😬","shake"],["😰","wiggle"],
+ ["🤒","wiggle"],["🤢","wiggle"],["😈","wiggle"],["👻","float"],["💀","wiggle"],["🤡","bounce"],["🥵","pulse"],["🥶","shake"],
+ ["❤️","pulse"],["🔥","pulse"],["✨","spin"],["💤","float"],["🙏","bounce"],["😅","wiggle"],["🫠","float"],["😶‍🌫️","float"]
+];
+
+// identity
+let uid = localStorage.getItem("mood_uid");
+if(!uid){ uid = "u"+Math.random().toString(36).slice(2,10); localStorage.setItem("mood_uid",uid); }
+let myName = localStorage.getItem("mood_name")||"";
+let room = localStorage.getItem("mood_room")||"";
+let selected = null;           // [emoji, anim]
+let partnerData = null;
+let backendOff = null;
+
+/* ---------- backend (Firebase, ya demo mode) ---------- */
+let db;
+if(!DEMO){ firebase.initializeApp(firebaseConfig); db = firebase.database(); }
+
+function listen(roomId, cb){
+  if(!DEMO){
+    const ref = db.ref("moods/"+roomId);
+    const fn = ref.on("value", s => cb(s.val()||{}));
+    return () => ref.off("value", fn);
+  }
+  const key = "moodDemo_"+roomId;
+  const read = () => cb(JSON.parse(localStorage.getItem(key)||"{}"));
+  const h = e => { if(e.key===key) read(); };
+  window.addEventListener("storage", h); read();
+  return () => window.removeEventListener("storage", h);
+}
+function save(roomId, data){
+  if(!DEMO){
+    return db.ref("moods/"+roomId+"/"+uid).set({...data, ts: firebase.database.ServerValue.TIMESTAMP});
+  }
+  const key = "moodDemo_"+roomId;
+  const all = JSON.parse(localStorage.getItem(key)||"{}");
+  all[uid] = {...data, ts: Date.now()};
+  localStorage.setItem(key, JSON.stringify(all));
+  return Promise.resolve();
+}
+
+/* ---------- UI ---------- */
+function buildGrid(){
+  const g = $("grid"); g.innerHTML="";
+  EMOJIS.forEach(([e,a])=>{
+    const b=document.createElement("button"); b.textContent=e;
+    b.onclick=()=>{ selected=[e,a]; [...g.children].forEach(x=>x.classList.remove("sel")); b.classList.add("sel");
+      $("memoji").textContent=e; $("memoji").className="a-"+a; };
+    g.appendChild(b);
+  });
+}
+
+function limit3(t){ return t.trim().split(/\s+/).filter(Boolean).slice(0,3).join(" "); }
+
+function ago(ts){
+  if(!ts) return "";
+  const s = Math.max(0,(Date.now()-ts)/1000|0);
+  if(s<60) return "abhi abhi";
+  if(s<3600) return (s/60|0)+" min pehle";
+  if(s<86400) return (s/3600|0)+" ghante pehle";
+  return (s/86400|0)+" din pehle";
+}
+
+let lastPartnerSig = "";
+function renderPartner(){
+  const p = partnerData;
+  if(!p){
+    $("waiting").style.display="block"; $("pname").style.display="none"; $("pemoji").style.display="none";
+    $("ptext").textContent=""; $("pago").textContent=""; return;
+  }
+  $("waiting").style.display="none";
+  $("pname").style.display="block"; $("pemoji").style.display="block";
+  $("pname").textContent = (p.name||"Dusra")+" ka mood";
+  const sig = p.emoji+"|"+p.text+"|"+p.ts;
+  const pe = $("pemoji");
+  pe.textContent = p.emoji || "🙂";
+  pe.className = "a-"+(p.anim||"float");
+  if(sig!==lastPartnerSig){ lastPartnerSig=sig; pe.classList.add("pop"); setTimeout(()=>pe.classList.remove("pop"),500); }
+  $("ptext").textContent = p.text||"";
+  $("pago").textContent = ago(p.ts);
+}
+
+function enterRoom(){
+  $("join").classList.remove("active"); $("main").classList.add("active");
+  $("roomLbl").textContent = room;
+  buildGrid();
+  if(backendOff) backendOff();
+  backendOff = listen(room, all => {
+    // apna mood wapas dikhao (reopen par)
+    const mine = all[uid];
+    if(mine && !selected){
+      selected=[mine.emoji,mine.anim];
+      $("memoji").textContent=mine.emoji; $("memoji").className="a-"+mine.anim;
+      $("mtext").textContent = mine.text ? "Aapka mood: "+mine.text : "Aapka mood set hai";
+    }
+    const other = Object.keys(all).find(k=>k!==uid);
+    partnerData = other ? all[other] : null;
+    renderPartner();
+  });
+}
+
+$("go").onclick = () => {
+  const n = $("inName").value.trim(), r = $("inRoom").value.trim().toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(!n || !r){ alert("Naam aur code dono daalo"); return; }
+  myName=n; room=r;
+  localStorage.setItem("mood_name",n); localStorage.setItem("mood_room",r);
+  enterRoom();
+};
+
+$("send").onclick = async () => {
+  if(!selected){ alert("Pehle ek emoji chuno"); return; }
+  const text = limit3($("inText").value);
+  $("inText").value = text;
+  await save(room, {emoji:selected[0], anim:selected[1], text, name:myName});
+  $("mtext").textContent = text ? "Aapka mood: "+text : "Mood bhej diya ✓";
+  burst(selected[0]);
+};
+
+$("leave").onclick = () => {
+  if(!confirm("Sach me disconnect karna hai? Dobara code daalna padega.")) return;
+  localStorage.removeItem("mood_room");
+  if(backendOff) backendOff();
+  $("main").classList.remove("active"); $("join").classList.add("active");
+  selected=null; partnerData=null; lastPartnerSig="";
+};
+
+// time label refresh
+setInterval(()=>{ if(partnerData) $("pago").textContent = ago(partnerData.ts); }, 30000);
+
+/* ---------- rising emojis in background ---------- */
+function drop(e){
+  const d=document.createElement("div"); d.className="drop"; d.textContent=e;
+  d.style.left=(Math.random()*92)+"%"; d.style.fontSize=(18+Math.random()*28)+"px";
+  d.style.animationDuration=(5+Math.random()*4)+"s";
+  $("rain").appendChild(d); setTimeout(()=>d.remove(),9500);
+}
+function burst(e){ for(let i=0;i<10;i++) setTimeout(()=>drop(e), i*120); }
+setInterval(()=>{ if(partnerData && partnerData.emoji) drop(partnerData.emoji); }, 1100);
+
+/* ---------- hamesha connected ---------- */
+if(!DEMO){
+  db.ref(".info/connected").on("value", s => { $("dot").style.background = s.val() ? "#22c55e" : "#ef4444"; });
+}else{ $("dot").style.background="#22c55e"; }
+// app wapas khulte hi dobara sync
+document.addEventListener("visibilitychange", () => {
+  if(!document.hidden && room && $("main").classList.contains("active")){
+    if(!DEMO) db.goOnline();
+    enterRoom();
+  }
+});
+window.addEventListener("online", () => { if(!DEMO) db.goOnline(); });
+
+/* ---------- start ---------- */
+if(DEMO){
+  const w=$("warn"); w.style.display="block";
+  w.innerHTML = "⚠️ Abhi DEMO mode hai (sirf ek hi phone/browser ke tabs me chalega). Do alag phones ke liye Firebase config upar code me paste karo.";
+}
+$("inName").value = myName;
+$("inRoom").value = room;
+if(myName && room) enterRoom();
+</script>
+</body>
+</html>
